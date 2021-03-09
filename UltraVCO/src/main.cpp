@@ -16,6 +16,8 @@
 
 #include <overclocking.hpp>
 #include <waveshapes/sinus.hpp>
+#include <waveshapes/triangle.hpp>
+#include <waveshapes/saw.hpp>
 
 #define LED1_PORT GPIOC
 #define LED1_PIN GPIO13
@@ -23,6 +25,16 @@
 constexpr int PWM_RESOLUTION_BITS = 8;
 //2^8 = 256 values, from 0 to 255
 constexpr int PWM_RESOLUTION = 2 << PWM_RESOLUTION_BITS;
+
+constexpr auto wave_table = triangle_tab;
+constexpr int wave_table_len = 64;
+
+// constexpr auto wave_table = sinus_tab;
+// constexpr int wave_table_len = 63;
+
+// constexpr auto wave_table = saw64_tab;
+// constexpr int wave_table_len = 64;
+
 
 //adc value is from 0 to 4095
 volatile uint16_t adc_res[2];
@@ -153,8 +165,13 @@ void tim2_isr(void)
 {
 	if (timer_get_flag(TIM2, TIM_SR_CC1IF)) {
 		timer_clear_flag(TIM2, TIM_SR_CC1IF);
-        timer_set_oc_value(TIM1, TIM_OC1, sinus_tab[wave_counter]);
-		wave_counter = wave_counter >= 62 ? 0 : wave_counter + 1;
+        timer_set_oc_value(TIM1, TIM_OC1, wave_table[wave_counter]);
+		wave_counter = wave_counter >= (wave_table_len-1) ? 0 : wave_counter + 1;
+		// int i = adc_res[0];
+		// timer_set_period(TIM2, adc_res[0]);
+		// timer_set_period(TIM2, 600);
+		timer_set_period(TIM2, (adc_res[0] + 1) * 2);
+
 	}
 }
 
@@ -180,7 +197,7 @@ int main(void)
     adc_setup();
     
     while(1) {
-        if(adc_res[0] > 2000){
+        if(adc_res[1] > 2000){
             gpio_set(GPIOC, GPIO13);
         } else {
             gpio_clear(GPIOC, GPIO13);

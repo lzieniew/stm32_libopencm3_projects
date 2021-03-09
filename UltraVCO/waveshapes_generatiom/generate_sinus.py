@@ -16,7 +16,7 @@ sinus = []
 
 print("start")
 for i in x_tab:
-    val = int((((cos(i)) / 2)+ 0.5) * (MAX_DAC_VALUE - 1))
+    val = int((((sin(i)) / 2)+ 0.5) * (MAX_DAC_VALUE - 1))
     print("{:10.4f}".format(val) + ",")
     sinus.append(val)
 print("stop")

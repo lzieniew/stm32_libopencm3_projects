@@ -195,7 +195,7 @@
 //   510.1165
 // };
 
-const float sinus_tab[63] = {
+constexpr float sinus_tab[63] = {
   511.0000,
   509.0000,
   505.0000,
