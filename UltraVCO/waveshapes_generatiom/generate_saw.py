@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Spyder Editor
-
-This is a temporary script file.
-"""
 
 from numpy import arange
 from math import pi, sin, cos
