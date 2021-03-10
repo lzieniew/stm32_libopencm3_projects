@@ -18,6 +18,7 @@
 #include <waveshapes/sinus.hpp>
 #include <waveshapes/triangle.hpp>
 #include <waveshapes/saw.hpp>
+#include <waveshapes/square.hpp>
 
 #define LED1_PORT GPIOC
 #define LED1_PIN GPIO13
@@ -26,14 +27,17 @@ constexpr int PWM_RESOLUTION_BITS = 8;
 //2^8 = 256 values, from 0 to 255
 constexpr int PWM_RESOLUTION = 2 << PWM_RESOLUTION_BITS;
 
-constexpr auto wave_table = triangle_tab;
-constexpr int wave_table_len = 64;
+// constexpr auto wave_table = triangle64_tab;
+// constexpr int wave_table_len = 64;
 
-// constexpr auto wave_table = sinus_tab;
-// constexpr int wave_table_len = 63;
+// constexpr auto wave_table = sinus64_tab;
+// constexpr int wave_table_len = 64;
 
 // constexpr auto wave_table = saw64_tab;
 // constexpr int wave_table_len = 64;
+
+constexpr auto wave_table = square32_tab;
+constexpr int wave_table_len = 32;
 
 
 //adc value is from 0 to 4095

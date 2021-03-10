@@ -5,14 +5,17 @@ from math import pi, sin, cos
 import matplotlib.pyplot as plt
 
 MAX_DAC_VALUE = 512
-STEPS = 16
+STEPS = 64
 
 x_tab = arange(0, 2 * pi, pi / (STEPS/2))
 sinus = []
 
 print("start")
-for i in x_tab:
-    val = int((((sin(i)) / 2)+ 0.5) * (MAX_DAC_VALUE - 1))
+for i in range(STEPS):
+    if i >= STEPS/2:
+        val = 0
+    else:
+        val = 512
     print("{:10.4f}".format(val) + ",")
     sinus.append(val)
 print("stop")
