@@ -36,7 +36,10 @@ constexpr int PWM_RESOLUTION = 2 << PWM_RESOLUTION_BITS;
 // constexpr auto wave_table = saw64_tab;
 // constexpr int wave_table_len = 64;
 
-constexpr auto wave_table = square64_tab;
+// constexpr auto wave_table = square64_tab;
+
+const float *wave_table;
+
 constexpr int wave_table_len = 64;
 
 //adc value is from 0 to 4095
@@ -44,9 +47,22 @@ volatile uint16_t adc_res[3];
 volatile uint16_t wave_counter{0};
 
 void delay(uint32_t n) {
-        for (volatile unsigned int i = 0; i < n; i++)
-            __asm__("nop");
-    }
+	for (volatile unsigned int i = 0; i < n; i++)
+		__asm__("nop");
+}
+
+inline void chooseWave(){
+	uint16_t wave_select = adc_res[2];
+	if(wave_select < 1024){
+		wave_table = triangle64_tab;
+	} else if(wave_select < 2048){
+		wave_table = triangle64_tab;
+	} else if(wave_select < 3072){
+		wave_table = saw64_tab;
+	} else{
+		wave_table = square64_tab;
+	}
+}
 
 static void clock_setup(void)
 {
@@ -170,13 +186,13 @@ void tim2_isr(void)
 {
 	if (timer_get_flag(TIM2, TIM_SR_CC1IF)) {
 		timer_clear_flag(TIM2, TIM_SR_CC1IF);
+		chooseWave();
         timer_set_oc_value(TIM1, TIM_OC1, wave_table[wave_counter]);
 		wave_counter = wave_counter >= (wave_table_len-1) ? 0 : wave_counter + 1;
 		// int i = adc_res[0];
 		// timer_set_period(TIM2, adc_res[0]);
 		// timer_set_period(TIM2, 600);
 		timer_set_period(TIM2, (adc_res[0] + 1) * 2);
-
 	}
 }
 
@@ -186,17 +202,6 @@ int main(void)
 	gpio_setup();
 	interrupt_tim_setup();
     pwm_timer_setup();
-
-	// while (true) {
-		// timer_set_period(TIM2, 128);
-        // for(int i = 0; i < 10000000; i++){
-        //     __asm__("nop");
-        // }
-        // timer_set_period(TIM2, 256);
-        // for(int i = 0; i < 10000000; i++){
-        //     __asm__("nop");
-        // }
-	// }
 
 	dma_setup();
     adc_setup();
