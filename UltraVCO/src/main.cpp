@@ -40,7 +40,7 @@ constexpr auto wave_table = square64_tab;
 constexpr int wave_table_len = 64;
 
 //adc value is from 0 to 4095
-volatile uint16_t adc_res[2];
+volatile uint16_t adc_res[3];
 volatile uint16_t wave_counter{0};
 
 void delay(uint32_t n) {
@@ -66,6 +66,7 @@ void adc_setup(void) {
 
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO0);
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO1);
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, GPIO2);
 	adc_power_off(ADC1);
 	
 	adc_enable_scan_mode(ADC1);
@@ -85,8 +86,9 @@ void adc_setup(void) {
 	
 	channel_seq[0] = 0;
 	channel_seq[1] = 1;
+	channel_seq[2] = 2;
 	
-	adc_set_regular_sequence(ADC1, 2, channel_seq);
+	adc_set_regular_sequence(ADC1, 3, channel_seq);
 	
 	adc_enable_dma(ADC1);
 	delay(100);
@@ -106,7 +108,7 @@ void dma_setup(void) {
 	dma_set_peripheral_address(DMA1, DMA_CHANNEL1, (uint32_t) &ADC_DR(ADC1));
 	
 	dma_set_memory_address(DMA1, DMA_CHANNEL1, (uint32_t) &adc_res);
-	dma_set_number_of_data(DMA1, DMA_CHANNEL1, 2);
+	dma_set_number_of_data(DMA1, DMA_CHANNEL1, 3);
 	
 	dma_enable_transfer_complete_interrupt(DMA1, DMA_CHANNEL1);
 	dma_enable_channel(DMA1, DMA_CHANNEL1);
@@ -200,7 +202,7 @@ int main(void)
     adc_setup();
     
     while(1) {
-        if(adc_res[1] > 2000){
+        if(adc_res[2] > 2000){
             gpio_set(GPIOC, GPIO13);
         } else {
             gpio_clear(GPIOC, GPIO13);
