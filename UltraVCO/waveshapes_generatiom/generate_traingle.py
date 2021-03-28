@@ -4,7 +4,7 @@ from math import pi, sin, cos
 import matplotlib.pyplot as plt
 
 MAX_DAC_VALUE = 512
-STEPS = 16
+STEPS = 512
 
 x_tab = arange(0, 2 * pi, 0.1)
 traingle = []

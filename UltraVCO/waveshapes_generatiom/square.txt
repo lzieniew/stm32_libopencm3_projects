@@ -1,4 +1,4 @@
-constexpr float square_tab[512] = {
+start
   512.0000,
   512.0000,
   512.0000,
@@ -510,5 +510,6 @@ constexpr float square_tab[512] = {
     0.0000,
     0.0000,
     0.0000,
-    0.0000
-};
+    0.0000,
+stop
+512

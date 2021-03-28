@@ -23,24 +23,16 @@
 #define LED1_PORT GPIOC
 #define LED1_PIN GPIO13
 
+constexpr uint16_t adc_vals[4095]{};
+
 constexpr int PWM_RESOLUTION_BITS = 8;
 //2^8 = 256 values, from 0 to 255
 constexpr int PWM_RESOLUTION = 2 << PWM_RESOLUTION_BITS;
 
-// constexpr auto wave_table = triangle64_tab;
-// constexpr int wave_table_len = 64;
-
-// constexpr auto wave_table = sinus64_tab;
-// constexpr int wave_table_len = 64;
-
-// constexpr auto wave_table = saw64_tab;
-// constexpr int wave_table_len = 64;
-
-// constexpr auto wave_table = square64_tab;
-
 const float *wave_table;
 
-constexpr int wave_table_len = 64;
+constexpr int wave_table_len = 512;
+int wave_table_step = 10;
 
 //adc value is from 0 to 4095
 volatile uint16_t adc_res[3];
@@ -53,21 +45,26 @@ void delay(uint32_t n) {
 
 inline void chooseWave(){
 	uint16_t wave_select = adc_res[2];
-	if(wave_select < 1024){
-		wave_table = triangle64_tab;
-	} else if(wave_select < 2048){
-		wave_table = triangle64_tab;
-	} else if(wave_select < 3072){
-		wave_table = saw64_tab;
-	} else{
-		wave_table = square64_tab;
+	if(wave_select < 900){
+		wave_table = sinus_tab;
+	} else if(wave_select > 1024 && wave_select < 1900){
+		wave_table = triangle_tab;
+	} else if(wave_select > 2048 && wave_select < 3072){
+		wave_table = saw_tab;
+	} else if(wave_select > 2900){
+		wave_table = square_tab;
 	}
+}
+
+inline void chooseStep(){
+	uint16_t step_select = adc_res[1];
+	wave_table_step = step_select / 256;
 }
 
 static void clock_setup(void)
 {
-	// rcc_clock_setup_in_hse_8mhz_out_72mhz();
-    rcc_clock_setup_in_hse_8mhz_out_128mhz();
+	rcc_clock_setup_in_hse_8mhz_out_72mhz();
+    // rcc_clock_setup_in_hse_8mhz_out_128mhz();
     rcc_periph_clock_enable(RCC_TIM1);
     rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOC);
@@ -187,8 +184,9 @@ void tim2_isr(void)
 	if (timer_get_flag(TIM2, TIM_SR_CC1IF)) {
 		timer_clear_flag(TIM2, TIM_SR_CC1IF);
 		chooseWave();
+		chooseStep();
         timer_set_oc_value(TIM1, TIM_OC1, wave_table[wave_counter]);
-		wave_counter = wave_counter >= (wave_table_len-1) ? 0 : wave_counter + 1;
+		wave_counter = wave_counter >= (wave_table_len-wave_table_step) ? 0 : wave_counter + wave_table_step;
 		// int i = adc_res[0];
 		// timer_set_period(TIM2, adc_res[0]);
 		// timer_set_period(TIM2, 600);
@@ -197,7 +195,7 @@ void tim2_isr(void)
 }
 
 int main(void)
-{
+{ 
 	clock_setup();
 	gpio_setup();
 	interrupt_tim_setup();
@@ -214,6 +212,13 @@ int main(void)
         }
         // delay(80000);
     }
+
+	while(1){
+		gpio_set(GPIOC, GPIO13);
+		delay(100000);
+		gpio_clear(GPIOC, GPIO13);
+		delay(100000);
+	}
 
 	return 0;
 }

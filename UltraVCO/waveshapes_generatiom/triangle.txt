@@ -1,4 +1,3 @@
-constexpr float triangle_tab[512] = {  
     1.9961,
     3.9922,
     5.9883,
@@ -510,5 +509,5 @@ constexpr float triangle_tab[512] = {
     5.9883,
     3.9922,
     1.9961,
-    0.0000
-};
+    0.0000,
+512
