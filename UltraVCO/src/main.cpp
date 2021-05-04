@@ -20,19 +20,23 @@
 #include <waveshapes/saw.hpp>
 #include <waveshapes/square.hpp>
 
+#include "convert.hpp"
+
+#include "debug_serial.hpp"
+
 #define LED1_PORT GPIOC
 #define LED1_PIN GPIO13
 
 constexpr uint16_t adc_vals[4095]{};
 
 constexpr int PWM_RESOLUTION_BITS = 8;
-//2^8 = 256 values, from 0 to 255
+//2^8 = 512 values, from 0 to 511
 constexpr int PWM_RESOLUTION = 2 << PWM_RESOLUTION_BITS;
 
 const float *wave_table;
 
 constexpr int wave_table_len = 512;
-int wave_table_step = 10;
+int wave_table_step = 8;
 
 //adc value is from 0 to 4095
 volatile uint16_t adc_res[3];
@@ -44,21 +48,27 @@ void delay(uint32_t n) {
 }
 
 inline void chooseWave(){
-	uint16_t wave_select = adc_res[2];
-	if(wave_select < 900){
+	// uint16_t wave_select = adc_res[2];
+	// if(wave_select < 900){
+	// 	wave_table = sinus_tab;
+	// } else if(wave_select > 1024 && wave_select < 1900){
+	// 	wave_table = triangle_tab;
+	// } else if(wave_select > 2048 && wave_select < 3072){
+	// 	wave_table = saw_tab;
+	// } else if(wave_select > 2900){
+	// 	wave_table = square_tab;
+	// }
+	if(gpio_get(GPIOA, GPIO15)){
 		wave_table = sinus_tab;
-	} else if(wave_select > 1024 && wave_select < 1900){
+	} else {
 		wave_table = triangle_tab;
-	} else if(wave_select > 2048 && wave_select < 3072){
-		wave_table = saw_tab;
-	} else if(wave_select > 2900){
-		wave_table = square_tab;
 	}
 }
 
 inline void chooseStep(){
 	uint16_t step_select = adc_res[1];
-	wave_table_step = step_select / 256;
+	wave_table_step = (step_select / 256) + 1;
+	wave_table_step = 2;
 }
 
 static void clock_setup(void)
@@ -67,6 +77,7 @@ static void clock_setup(void)
     // rcc_clock_setup_in_hse_8mhz_out_128mhz();
     rcc_periph_clock_enable(RCC_TIM1);
     rcc_periph_clock_enable(RCC_GPIOA);
+	// rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
 	rcc_periph_clock_enable(RCC_AFIO);
 	rcc_periph_clock_enable(RCC_USART1);
@@ -129,18 +140,35 @@ void dma_setup(void) {
 
 static void gpio_setup(void)
 {
-	rcc_periph_clock_enable(RCC_GPIOC);
-    rcc_periph_clock_enable(RCC_AFIO);
-
+	// rcc_periph_clock_enable(RCC_GPIOC);
+	// rcc_periph_clock_enable(RCC_GPIOB);
+    // rcc_periph_clock_enable(RCC_AFIO);
+	
 	gpio_set_mode(LED1_PORT, GPIO_MODE_OUTPUT_50_MHZ,
 		GPIO_CNF_OUTPUT_PUSHPULL, LED1_PIN);
 	gpio_set(LED1_PORT, LED1_PIN);
 
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+		GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
+	// gpio_clear(GPIOA, GPIO9);
+
+	// sin/trn output, PWM1 channel 1
     gpio_set_mode(
         GPIOA, 
         GPIO_MODE_OUTPUT_50_MHZ, 
         GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, 
-        GPIO8);
+        GPIO_TIM1_CH1);
+
+	// saw output, PWM1 channel 2
+	gpio_set_mode(
+        GPIOA, 
+        GPIO_MODE_OUTPUT_50_MHZ, 
+        GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, 
+        GPIO_TIM1_CH3);
+	
+	// wave select input
+	gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+		GPIO_CNF_INPUT_PULL_UPDOWN, GPIO15);
 }
 
 void dma1_channel1_isr(void) {
@@ -170,13 +198,19 @@ static void interrupt_tim_setup(void)
 
 static void pwm_timer_setup(void)
 {
+	
     timer_set_mode(TIM1, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_CENTER_1, TIM_CR1_DIR_UP);
     timer_set_oc_mode(TIM1, TIM_OC1, TIM_OCM_PWM2);
+	timer_set_oc_mode(TIM1, TIM_OC3, TIM_OCM_PWM2);
+	//PA8, sin/triangle
     timer_enable_oc_output(TIM1, TIM_OC1);
+	timer_enable_oc_output(TIM1, TIM_OC3);
+	timer_set_oc_fast_mode(TIM1, TIM_OC3);
     timer_enable_break_main_output(TIM1);
     timer_set_period(TIM1, PWM_RESOLUTION);
-    // timer_set_oc_value(TIM1, TIM_OC1, 100);
+    timer_set_oc_value(TIM1, TIM_OC3, 100);
     timer_enable_counter(TIM1);
+
 }
 
 void tim2_isr(void)
@@ -184,13 +218,22 @@ void tim2_isr(void)
 	if (timer_get_flag(TIM2, TIM_SR_CC1IF)) {
 		timer_clear_flag(TIM2, TIM_SR_CC1IF);
 		chooseWave();
-		chooseStep();
+		// chooseStep();
         timer_set_oc_value(TIM1, TIM_OC1, wave_table[wave_counter]);
+		timer_set_oc_value(TIM1, TIM_OC3, saw_tab[wave_counter]);
+		if(wave_counter <= 256){
+			gpio_set(GPIOA, GPIO12);
+		} else {
+			gpio_clear(GPIOA, GPIO12);
+		}
+		
 		wave_counter = wave_counter >= (wave_table_len-wave_table_step) ? 0 : wave_counter + wave_table_step;
 		// int i = adc_res[0];
 		// timer_set_period(TIM2, adc_res[0]);
-		// timer_set_period(TIM2, 600);
-		timer_set_period(TIM2, (adc_res[0] + 1) * 2);
+		auto dac_and_step = convert_adc_value_to_PWM_value(adc_res[0]);
+		timer_set_period(TIM2, dac_and_step.first);
+		wave_table_step = dac_and_step.second;
+		// timer_set_period(TIM2, (adc_res[0] + 1) * 2);
 	}
 }
 
@@ -205,20 +248,10 @@ int main(void)
     adc_setup();
     
     while(1) {
-        if(adc_res[2] > 2000){
-            gpio_set(GPIOC, GPIO13);
-        } else {
-            gpio_clear(GPIOC, GPIO13);
-        }
-        // delay(80000);
+		int i = adc_res[0];
+		print_int(i);
+		// gpio_toggle(GPIOC, GPIO13);
+		delay(8000000);
     }
-
-	while(1){
-		gpio_set(GPIOC, GPIO13);
-		delay(100000);
-		gpio_clear(GPIOC, GPIO13);
-		delay(100000);
-	}
-
 	return 0;
 }
